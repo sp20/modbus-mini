@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="modbus-mini" default="release" basedir=".">
+	
+	<property file="version"></property>
+	
+	<target name="build">
+		<javac classpath="lib/*" srcdir="src" excludes="**/Test*.java" destdir="bin" includeantruntime="no">
+		</javac>
+	</target>
+	
+	<target name ="makejar" depends="build">
+		<jar jarfile="release/modbus-mini-${version}.jar" includes="**/*.class" basedir="bin"/>
+	</target>
+
+	<target name ="packsrc">
+		<zip destfile="release/modbus-mini-${version}-sources.zip" includes="**/*" basedir="src"/>
+	</target>
+
+	<target name="release" depends="makejar,packsrc" />
+
+</project>
