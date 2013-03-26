@@ -1,21 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="modbus-mini" default="release" basedir=".">
-	
-	<property file="version"></property>
-	
-	<target name="build">
-		<javac classpath="lib/*" srcdir="src" excludes="**/Test*.java" destdir="bin" includeantruntime="no">
-		</javac>
-	</target>
-	
-	<target name ="makejar" depends="build">
-		<jar jarfile="release/modbus-mini-${version}.jar" includes="**/*.class" basedir="bin"/>
+
+	<property file="version" />
+	<property name="source.dir" location="src" />
+	<property name="lib.dir" location="lib" />
+	<property name="bin.dir" location="bin" />
+	<property name="release.dir" location="release" />
+
+    <path id="classpath">
+      <fileset dir="${lib.dir}">
+        <include name="**/*.jar"/>
+      </fileset>
+    </path>
+
+	<target name="build" description="Compiles all classes.">
+		<delete dir="${bin.dir}" />
+		<mkdir dir="${bin.dir}" />
+		<javac classpathref="classpath" srcdir="${source.dir}" destdir="${bin.dir}" includeantruntime="no" />
 	</target>
 
-	<target name ="packsrc">
-		<zip destfile="release/modbus-mini-${version}-sources.zip" includes="**/*" basedir="src"/>
+	<target name="makejar" depends="build" description="Makes .jar file.">
+		<jar jarfile="release/modbus-mini-${version}.jar" includes="**/*.class" basedir="${bin.dir}" />
 	</target>
 
-	<target name="release" depends="makejar,packsrc" />
+	<target name="packsrc" description="Packs all sources into .zip file.">
+		<zip destfile="${release.dir}/modbus-mini-${version}-sources.zip" includes="**/*" basedir="${source.dir}" />
+	</target>
+
+	<target name="clean" description="Removes all files in release directory.">
+		<delete dir="${release.dir}" />
+		<mkdir dir="${release.dir}" />
+	</target>
+
+	<target name="release" depends="clean,makejar,packsrc" description="Builds all files for release." />
 
 </project>
