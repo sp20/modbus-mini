@@ -44,9 +44,11 @@ public class ModbusRtuClient extends AModbusClient {
 		CommPortIdentifier ident = CommPortIdentifier.getPortIdentifier(portName);
 		port = ident.open("ModbusRtuClient on " + portName, 2000);
 		port.setOutputBufferSize(buffer.length);
+		port.setInputBufferSize(buffer.length);
 		try {
-			port.enableReceiveTimeout(timeout);
 			port.setSerialPortParams(baudrate, dataBits, stopBits, parity);				
+			port.enableReceiveTimeout(timeout);
+			port.setFlowControlMode(SerialPort.FLOWCONTROL_NONE);
 		} catch (UnsupportedCommOperationException e) {
 			close();
 			throw e;
@@ -103,12 +105,24 @@ public class ModbusRtuClient extends AModbusClient {
 	
 	private boolean readToBuffer(int start, int length) throws IOException {
 		InputStream in = port.getInputStream();
-		int res = in.read(buffer, start, length);
-		if (res < length) {
+		long now = System.currentTimeMillis();
+		long deadline = now + timeout;
+		int offset = start;
+		int bytesToRead = length;
+		int res;
+		while ((now < deadline) && (bytesToRead > 0)) {
+			res = in.read(buffer, offset, bytesToRead);
 			if (res < 0)
-				res = 0;
-			if ((start + res > 0) && log.isTraceEnabled())
-				log.trace("Read (uncomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
+				break;
+			offset += res;
+			bytesToRead -= res;
+			if (bytesToRead > 0) // only to avoid redundant call of System.currentTimeMillis()
+				now = System.currentTimeMillis();
+		}
+		res = length - bytesToRead; // total bytes read
+		if (res < length) {
+			if ((res > 0) && log.isTraceEnabled())
+				log.trace("Read (incomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
 			log.warn("Response timeout ({} bytes, need {})", start + res, expectedBytes);
 			return false;
 		}
