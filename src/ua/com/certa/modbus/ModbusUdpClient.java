@@ -45,7 +45,7 @@ public class ModbusUdpClient extends AModbusClient {
 		socket.setSoTimeout(timeout);
 		inPacket = new DatagramPacket(buffer, buffer.length);
 		outPacket = new DatagramPacket(buffer, buffer.length, remoteAddress);
-		log.info("Socket opened: {} <-> {}", localAddress, remoteAddress);
+		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), outPacket.getSocketAddress());
 	}
 
 	@Override

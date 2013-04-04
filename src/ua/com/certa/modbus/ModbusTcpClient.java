@@ -40,7 +40,7 @@ public class ModbusTcpClient extends AModbusClient {
 		InetAddress localAddress = InetAddress.getByName(localAddressString);
 		socket = new Socket(remoteAddress, remotePort, localAddress, localPort);
 		socket.setSoTimeout(timeout);
-		log.info("Socket opened: {} <-> {}", localAddress, remoteAddress);
+		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
 	}
 
 	public void clearInput() throws IOException {
