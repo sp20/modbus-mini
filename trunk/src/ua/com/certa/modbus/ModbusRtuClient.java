@@ -93,7 +93,7 @@ public class ModbusRtuClient extends AModbusClient {
 
 	private boolean crcValid(int size) {
 		int crc = ModbusUtils.calcCRC16(buffer, 0, size);
-		int crc2 = bytesToInt16(buffer[size], buffer[size + 1]); 
+		int crc2 = bytesToInt16(buffer[size], buffer[size + 1]) & 0xFFFF; 
 		if (crc == crc2)
 			return true;
 		else {

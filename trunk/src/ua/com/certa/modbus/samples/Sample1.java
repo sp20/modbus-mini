@@ -17,7 +17,7 @@ public class Sample1 {
 			mc.execRequest();
 			if (mc.getResult() == AModbusClient.RESULT_OK)
 				for (int i = 0; i < mc.getResponseCount(); i++)
-					System.out.println("HR" + i + "=" + mc.getResponseRegSigned(mc.getResponseAddress() + i));
+					System.out.println("HR" + i + "=" + mc.getResponseRegister(mc.getResponseAddress() + i));
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
