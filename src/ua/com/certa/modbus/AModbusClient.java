@@ -160,6 +160,14 @@ public abstract class AModbusClient extends AModbus {
 			throw new IllegalStateException();
 	}
 
+	/**
+	 * Get discrete value from response to request initiated by {@link #InitReadCoilsRequest()} or 
+	 * {@link #InitReadDInputsRequest()}. Call this method ONLY after successful execution 
+	 * of {@link #execRequest()}.<br>
+	 * @param address - Address of bit. It must be in the range specified in request.
+	 * You can use {@link #getResponseAddress()} and {@link #getResponseCount()}.
+	 * @return Value of bit at given address.
+	 */
 	public boolean getResponseBit(int address) {
 		if ((getFunction() == FN_READ_COILS) || (getFunction() == FN_READ_DISCRETE_INPUTS)) {
 			int offset = address - getResponseAddress();
@@ -172,7 +180,17 @@ public abstract class AModbusClient extends AModbus {
 			throw new IllegalStateException();
 	}
 
-	public int getResponseRegUnsigned(int address) {
+	/**
+	 * Get register value from response to request initiated by {@link #InitReadHoldingsRequest()} or 
+	 * {@link #InitReadAInputsRequest()}. Call this method ONLY after successful execution 
+	 * of {@link #execRequest()}.<br>
+	 * There are various utility methods in {@link AModbus} to manipulate int16 values.
+	 * @param address - Address of register. It must be in the range specified in request.
+	 * You can use {@link #getResponseAddress()} and {@link #getResponseCount()}.
+	 * @return Value of register at given address. This value is 16 bit signed (-32768..+32767).  
+	 * To make it unsigned (0..65535) use {@link AModbus#makeUnsigned16()}.
+	 */
+	public int getResponseRegister(int address) {
 		if ((getFunction() == FN_READ_HOLDING_REGISTERS) || (getFunction() == FN_READ_INPUT_REGISTERS)) {
 			int offset = address - getResponseAddress();
 			if ((offset < 0) || (offset >= getResponseCount()))
@@ -181,11 +199,6 @@ public abstract class AModbusClient extends AModbus {
 		}
 		else
 			throw new IllegalStateException();
-	}
-
-	public int getResponseRegSigned(int address) {
-		int uv = getResponseRegUnsigned(address);
-		return (uv << 16) >> 16;
 	}
 
 }

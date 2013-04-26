@@ -57,7 +57,7 @@ public class ModbusUdpClient extends AModbusClient {
 		buffer[0] = highByte(transactionId);
 		buffer[1] = lowByte(transactionId);
 		buffer[2] = 0; // Protocol identifier (0x0006)
-		buffer[3] = 6; 
+		buffer[3] = 6; //
 		buffer[4] = highByte(pduSize + 1);
 		buffer[5] = lowByte(pduSize + 1); 
 		buffer[6] = getServerId(); 
