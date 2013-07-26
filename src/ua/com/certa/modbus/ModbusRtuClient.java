@@ -24,7 +24,7 @@ public class ModbusRtuClient extends AModbusClient {
 	private final int timeout;
 	private final int pause;
 	
-	private final byte[] buffer = new byte[MAX_PDU_SIZE + 3]; // ADU
+	private final byte[] buffer = new byte[MAX_PDU_SIZE + 3]; // ADU: [ID(1), PDU(n), CRC(2)]
 	private int expectedBytes; // for logging
 
 	public ModbusRtuClient(String portName, int baudRate, int dataBits, int parity, int stopBits, int timeout, int pause) {
