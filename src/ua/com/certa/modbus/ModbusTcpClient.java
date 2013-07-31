@@ -112,7 +112,7 @@ public class ModbusTcpClient extends AModbusClient {
 			if (!readToBuffer(0, 8))
 				return RESULT_TIMEOUT;
 			// check transaction id
-			int tid = bytesToInt16(buffer[1], buffer[0]);
+			int tid = makeUnsigned16(bytesToInt16(buffer[1], buffer[0]));
 			if (tid != transactionId) {
 				log.warn("waitResponse(): Invalid transaction id: {} (expected: {})", tid, transactionId);
 				return RESULT_BAD_RESPONSE;
