@@ -21,9 +21,9 @@ public abstract class AModbus implements Closeable {
 	protected final byte[] pdu = new byte[MAX_PDU_SIZE]; // function (1 byte), data (0..252 bytes)
 	protected int pduSize;
 	
-	public static final int makeUnsigned16(int int16)
+	public static final int toUnsigned16(int int16)
 	{
-		return lowInt16(int16);
+		return int16 & 0xFFFF;
 	}
 
 	public static final int bytesToInt16(byte lowByte, byte highByte) {
