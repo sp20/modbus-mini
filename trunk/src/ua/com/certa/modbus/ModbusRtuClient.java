@@ -62,8 +62,8 @@ public class ModbusRtuClient extends AModbusClient {
 		while (avail > 0) {
 			int count = Math.min(avail, buffer.length);
 			in.read(buffer, 0, count);
-			if (log.isTraceEnabled())
-				log.trace("Clear input: " + ModbusUtils.toHex(buffer, 0, count));
+			if (log.isWarnEnabled())
+				log.warn("Unexpected input: " + ModbusUtils.toHex(buffer, 0, count));
 			avail = in.available();
 		}
 	}
@@ -123,7 +123,7 @@ public class ModbusRtuClient extends AModbusClient {
 		if (res < length) {
 			if ((res > 0) && log.isTraceEnabled())
 				log.trace("Read (incomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
-			log.warn("Response timeout ({} bytes, need {})", start + res, expectedBytes);
+			log.warn("Response from {} timeout ({} bytes, need {})", getServerId(), start + res, expectedBytes);
 			return false;
 		}
 		else
