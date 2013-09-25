@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,8 +66,8 @@ public class ModbusTcpClient extends AModbusClient {
 			transactionId = 1;
 		buffer[0] = highByte(transactionId);
 		buffer[1] = lowByte(transactionId);
-		buffer[2] = 0; // Protocol identifier (0x0006)
-		buffer[3] = 6; //
+		buffer[2] = 0; // Protocol identifier (0)
+		buffer[3] = 0; //
 		buffer[4] = highByte(pduSize + 1);
 		buffer[5] = lowByte(pduSize + 1); 
 		buffer[6] = getServerId(); 
@@ -83,24 +85,29 @@ public class ModbusTcpClient extends AModbusClient {
 		int offset = start;
 		int bytesToRead = length;
 		int res;
-		while ((now < deadline) && (bytesToRead > 0)) {
-			res = in.read(buffer, offset, bytesToRead);
-			if (res < 0)
-				break;
-			offset += res;
-			bytesToRead -= res;
-			if (bytesToRead > 0) // only to avoid redundant call of System.currentTimeMillis()
-				now = System.currentTimeMillis();
-		}
-		res = length - bytesToRead; // total bytes read
-		if (res < length) {
-			if ((res > 0) && log.isTraceEnabled())
-				log.trace("Read (incomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
-			log.warn("Response timeout ({} bytes, need {})", start + res, expectedBytes);
+		try {
+			while ((now < deadline) && (bytesToRead > 0)) {
+				res = in.read(buffer, offset, bytesToRead);
+				if (res < 0)
+					break;
+				offset += res;
+				bytesToRead -= res;
+				if (bytesToRead > 0) // only to avoid redundant call of System.currentTimeMillis()
+					now = System.currentTimeMillis();
+			}
+			res = length - bytesToRead; // total bytes read
+			if (res < length) {
+				if ((res > 0) && log.isTraceEnabled())
+					log.trace("Read (incomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
+				log.warn("Response timeout ({} bytes, need {})", start + res, expectedBytes);
+				return false;
+			}
+			else
+				return true;
+		} catch (SocketTimeoutException e) {
+			log.warn("Response SocketTimeoutException");
 			return false;
 		}
-		else
-			return true;
 	}
 
 	@Override
