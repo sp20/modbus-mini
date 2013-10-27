@@ -1,5 +1,7 @@
 package ua.com.certa.modbus;
 
+import org.slf4j.Logger;
+
 public abstract class AModbusClient extends AModbus {
 
 	public static final byte RESULT_OK = 0;
@@ -15,6 +17,8 @@ public abstract class AModbusClient extends AModbus {
 	private int expectedCount = -1;
 	private int result; // RESULT_*
 
+	private Logger log = getLog();
+	
 	public byte getServerId() {
 		return serverId;
 	}
@@ -102,6 +106,7 @@ public abstract class AModbusClient extends AModbus {
 		}
 	}
 
+	protected abstract Logger getLog();
 	protected abstract void sendRequest() throws Exception;
 	protected abstract int waitResponse() throws Exception; // returns RESULT_*
 
@@ -112,6 +117,12 @@ public abstract class AModbusClient extends AModbus {
 		requestReady = false;
 		result = waitResponse();
 		responseReady = (result == RESULT_OK);
+		if (!responseReady && (log != null) && log.isWarnEnabled()) {
+			if (result == RESULT_EXCEPTION)
+				log.warn("Exception 0x{} from {}", ModbusUtils.byteToHex(getExceptionCode()), getServerId());
+			else
+				log.warn(getResultAsString() + " from {}", getServerId());
+		}
 		return responseReady;
 
 	}

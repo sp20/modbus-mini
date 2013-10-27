@@ -17,6 +17,7 @@ public class ModbusTcpClient extends AModbusClient {
 	private final String localAddressString; // null means any
 	private final int localPort; // zero means any
 	private final int timeout;
+	private final int pause;
 	private final boolean keepConnection; 
 
 	private Socket socket;
@@ -25,12 +26,13 @@ public class ModbusTcpClient extends AModbusClient {
 
 	private final byte[] buffer = new byte[MAX_PDU_SIZE + 7]; // Modbus TCP/IP ADU: [MBAP(7), PDU(n)]
 
-	public ModbusTcpClient(String remoteHost, int remotePort, String localIP, int localPort, int timeout, boolean keepConnection) {
+	public ModbusTcpClient(String remoteHost, int remotePort, String localIP, int localPort, int timeout, int pause, boolean keepConnection) {
 		this.remoteAddressString = remoteHost;
 		this.remotePort = (remotePort == 0) ? 502 : remotePort;
 		this.localAddressString = (localIP != null) ? localIP : "0.0.0.0";
 		this.localPort = localPort;
 		this.timeout = timeout;
+		this.pause = pause;
 		this.keepConnection = keepConnection;
 	}
 
@@ -51,14 +53,26 @@ public class ModbusTcpClient extends AModbusClient {
 		while (avail > 0) {
 			int count = Math.min(avail, buffer.length);
 			in.read(buffer, 0, count);
-			if (log.isTraceEnabled())
-				log.trace("Clear input: " + ModbusUtils.toHex(buffer, 0, count));
+			if (log.isWarnEnabled())
+				log.warn("Unexpected input: " + ModbusUtils.toHex(buffer, 0, count));
 			avail = in.available();
 		}
 	}
 
 	@Override
+	protected Logger getLog() {
+		return log;
+	}
+	
+	@Override
 	protected void sendRequest() throws IOException {
+		if (pause > 0)
+			try {
+				Thread.sleep(pause);
+			} catch (InterruptedException e) {
+				// ignore
+			}
+
 		openSocket();
 		clearInput();
 		transactionId++;
@@ -110,6 +124,11 @@ public class ModbusTcpClient extends AModbusClient {
 		}
 	}
 
+	private void logData(String kind, int start, int length) {
+		if (log.isTraceEnabled()) 
+			log.trace("Read ({}): {}", kind, ModbusUtils.toHex(buffer, start, length));
+	}
+	
 	@Override
 	protected int waitResponse() throws IOException {
 		openSocket();
@@ -121,16 +140,19 @@ public class ModbusTcpClient extends AModbusClient {
 			// check transaction id
 			int tid = toUnsigned16(bytesToInt16(buffer[1], buffer[0]));
 			if (tid != transactionId) {
+				logData("bad transaction", 0, 8);
 				log.warn("waitResponse(): Invalid transaction id: {} (expected: {})", tid, transactionId);
 				return RESULT_BAD_RESPONSE;
 			}
 			// check server id
 			if (buffer[6] != getServerId()) {
+				logData("bad id", 0, 8);
 				log.warn("waitResponse(): Invalid server id: {} (expected: {})", buffer[6], getServerId());
 				return RESULT_BAD_RESPONSE;
 			}
 			// check function (bit7 means exception)
 			if ((buffer[7] & 0x7f) != getFunction()) {
+				logData("bad function", 0, 8);
 				log.warn("waitResponse(): Invalid function: {} (expected: {})", buffer[7], getFunction());
 				return RESULT_BAD_RESPONSE;
 			}
@@ -140,8 +162,7 @@ public class ModbusTcpClient extends AModbusClient {
 				expectedBytes = 9; // MBAP(7), function(1), exception code(1)
 				if (!readToBuffer(8, 1)) // exception code
 					return RESULT_TIMEOUT;
-				if (log.isTraceEnabled())
-					log.trace("Read (exception): " + ModbusUtils.toHex(buffer, 0, expectedBytes));
+				logData("exception", 0, expectedBytes);
 				pduSize = 2; // function + exception code
 				System.arraycopy(buffer, 7, pdu, 0, pduSize);
 				return RESULT_EXCEPTION;
@@ -150,8 +171,7 @@ public class ModbusTcpClient extends AModbusClient {
 				// NORMAL RESPONSE
 				if (!readToBuffer(8, getExpectedPduSize() - 1)) // data (without function)
 					return RESULT_TIMEOUT;
-				if (log.isTraceEnabled())
-					log.trace("Read (normal): " + ModbusUtils.toHex(buffer, 0, expectedBytes));
+				logData("normal", 0, expectedBytes);
 				pduSize = getExpectedPduSize();
 				System.arraycopy(buffer, 7, pdu, 0, pduSize);
 				return RESULT_OK;

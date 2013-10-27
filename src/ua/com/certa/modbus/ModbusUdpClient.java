@@ -49,6 +49,11 @@ public class ModbusUdpClient extends AModbusClient {
 	}
 
 	@Override
+	protected Logger getLog() {
+		return log;
+	}
+	
+	@Override
 	protected void sendRequest() throws IOException {
 		openSocket();
 		transactionId++;
@@ -88,8 +93,8 @@ public class ModbusUdpClient extends AModbusClient {
 				return true;
 			}
 			else {
-				if (log.isTraceEnabled())
-					log.trace("Dropped: " + ModbusUtils.toHex(buffer, 0, inPacket.getLength()));
+				if (log.isWarnEnabled())
+					log.warn("Unexpected input: " + ModbusUtils.toHex(buffer, 0, inPacket.getLength()));
 				now = System.currentTimeMillis();
 			}
 		}
