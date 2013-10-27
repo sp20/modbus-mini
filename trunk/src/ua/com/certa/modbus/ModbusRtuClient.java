@@ -69,14 +69,19 @@ public class ModbusRtuClient extends AModbusClient {
 	}
 
 	@Override
+	protected Logger getLog() {
+		return log;
+	}
+	
+	@Override
 	protected void sendRequest() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException {
-		openPort();
 		if (pause > 0)
 			try {
 				Thread.sleep(pause);
 			} catch (InterruptedException e) {
 				// ignore
 			}
+		openPort();
 		clearInput();
 		buffer[0] = getServerId();
 		System.arraycopy(pdu, 0, buffer, 1, pduSize);
@@ -130,23 +135,46 @@ public class ModbusRtuClient extends AModbusClient {
 			return true;
 	}
 	
+	private void logData(String kind, int start, int length) {
+		if (log.isTraceEnabled()) 
+			log.trace("Read ({}): {}", kind, ModbusUtils.toHex(buffer, start, length));
+	}
+	
+	// returns RESULT_*
+	public int readIdToBuffer(byte expected) throws IOException {
+		InputStream in = port.getInputStream();
+		long now = System.currentTimeMillis();
+		long deadline = now + timeout;
+		int res = 0;
+		while (now < deadline) {
+			res = in.read(buffer, 0, 1);
+			if (res >= 0) {
+				if (buffer[0] == expected)
+					return RESULT_OK;
+				else {
+					logData("bad id", 0, 1);
+					//log.warn("Unexpected id: {} (need {})", buffer[0], expected);
+				}
+			}
+		}
+		return RESULT_TIMEOUT;
+	}
+
 	@Override
 	protected int waitResponse() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException {
 		openPort();
 		expectedBytes = getExpectedPduSize() + 3; // id(1), PDU(n), crc(2)
 		
 		// read id
-		if (!readToBuffer(0, 1))
-			return RESULT_TIMEOUT;
-		if (buffer[0] != getServerId()) {
-			log.warn("waitResponse(): Invalid id: {} (expected: {})", buffer[0], getServerId());
-			return RESULT_BAD_RESPONSE;
-		}
+		int r = readIdToBuffer(getServerId());
+		if (r != RESULT_OK)
+			return r;
 
 		// read function (bit7 means exception)
 		if (!readToBuffer(1, 1))
 			return RESULT_TIMEOUT;
 		if ((buffer[1] & 0x7f) != getFunction()) {
+			logData("bad function", 0, 2);
 			log.warn("waitResponse(): Invalid function: {} (expected: {})", buffer[1], getFunction());
 			return RESULT_BAD_RESPONSE;
 		}
@@ -156,14 +184,14 @@ public class ModbusRtuClient extends AModbusClient {
 			expectedBytes = 5; // id(1), function(1), exception code(1), crc(2)
 			if (!readToBuffer(2, 3)) // exception code + CRC
 				return RESULT_TIMEOUT;
-			if (log.isTraceEnabled())
-				log.trace("Read (exception): " + ModbusUtils.toHex(buffer, 0, expectedBytes));
 			if (crcValid(3)) {
+				logData("exception", 0, expectedBytes);
 				pduSize = 2; // function + exception code
 				System.arraycopy(buffer, 1, pdu, 0, pduSize);
 				return RESULT_EXCEPTION;
 			}
 			else {
+				logData("bad crc (exception)", 0, expectedBytes);
 				return RESULT_BAD_RESPONSE;
 			}
 		}
@@ -171,16 +199,17 @@ public class ModbusRtuClient extends AModbusClient {
 			// NORMAL RESPONSE
 			if (!readToBuffer(2, getExpectedPduSize() + 1)) // data + CRC (without function)
 				return RESULT_TIMEOUT;
-			if (log.isTraceEnabled())
-				log.trace("Read (normal): " + ModbusUtils.toHex(buffer, 0, expectedBytes));
 			// CRC check of (serverId + PDU)
 			if (crcValid(1 + getExpectedPduSize())) {
+				logData("normal", 0, expectedBytes);
 				pduSize = getExpectedPduSize();
 				System.arraycopy(buffer, 1, pdu, 0, pduSize);
 				return RESULT_OK;
 			}
-			else
+			else {
+				logData("bad crc", 0, expectedBytes);
 				return RESULT_BAD_RESPONSE;
+			}
 		}
 	}
 
