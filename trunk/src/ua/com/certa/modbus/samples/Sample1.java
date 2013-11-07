@@ -1,7 +1,7 @@
 package ua.com.certa.modbus.samples;
 
 import ua.com.certa.modbus.AModbusClient;
-import ua.com.certa.modbus.ModbusRtuClient;
+import ua.com.certa.modbus.ModbusRtuClientRxtx;
 
 import gnu.io.SerialPort;
 
@@ -9,7 +9,7 @@ public class Sample1 {
 
 	public static void main(String[] args) {
 	
-		ModbusRtuClient mc = new ModbusRtuClient("COM1", 9600, 8, SerialPort.PARITY_EVEN, SerialPort.STOPBITS_1, 1000, 5);
+		ModbusRtuClientRxtx mc = new ModbusRtuClientRxtx("COM1", 9600, 8, SerialPort.PARITY_EVEN, SerialPort.STOPBITS_1, 1000, 5);
 	
 		mc.InitReadHoldingsRequest(1, 0, 10);
 
