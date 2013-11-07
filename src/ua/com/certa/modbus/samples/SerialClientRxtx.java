@@ -5,7 +5,7 @@ import ua.com.certa.modbus.ModbusRtuClientRxtx;
 
 import gnu.io.SerialPort;
 
-public class Sample1 {
+public class SerialClientRxtx {
 
 	public static void main(String[] args) {
 	
