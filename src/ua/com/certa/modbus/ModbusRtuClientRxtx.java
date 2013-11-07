@@ -12,8 +12,8 @@ import gnu.io.PortInUseException;
 import gnu.io.SerialPort;
 import gnu.io.UnsupportedCommOperationException;
 
-public class ModbusRtuClient extends AModbusClient {
-	private static final Logger log = LoggerFactory.getLogger(ModbusRtuClient.class);
+public class ModbusRtuClientRxtx extends AModbusClient {
+	private static final Logger log = LoggerFactory.getLogger(ModbusRtuClientRxtx.class);
 
 	private SerialPort port;
 	private final String portName;
@@ -27,7 +27,7 @@ public class ModbusRtuClient extends AModbusClient {
 	private final byte[] buffer = new byte[MAX_PDU_SIZE + 3]; // ADU: [ID(1), PDU(n), CRC(2)]
 	private int expectedBytes; // for logging
 
-	public ModbusRtuClient(String portName, int baudRate, int dataBits, int parity, int stopBits, int timeout, int pause) {
+	public ModbusRtuClientRxtx(String portName, int baudRate, int dataBits, int parity, int stopBits, int timeout, int pause) {
 		this.portName = portName;
 		this.baudrate = baudRate;
 		this.dataBits = dataBits;
