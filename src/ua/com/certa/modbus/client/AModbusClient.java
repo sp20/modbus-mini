@@ -1,8 +1,13 @@
-package ua.com.certa.modbus;
+package ua.com.certa.modbus.client;
+
+import java.io.Closeable;
 
 import org.slf4j.Logger;
 
-public abstract class AModbusClient extends AModbus {
+import ua.com.certa.modbus.AModbus;
+import ua.com.certa.modbus.ModbusUtils;
+
+public abstract class AModbusClient extends AModbus implements Closeable {
 
 	public static final byte RESULT_OK = 0;
 	public static final byte RESULT_TIMEOUT = 1;

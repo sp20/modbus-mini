@@ -1,8 +1,6 @@
 package ua.com.certa.modbus;
 
-import java.io.Closeable;
-
-public abstract class AModbus implements Closeable {
+public abstract class AModbus {
 	public static final int MAX_PDU_SIZE = 253;
 	public static final int MAX_READ_COILS = 2000;
 	public static final int MAX_READ_REGS = 125;
@@ -95,6 +93,16 @@ public abstract class AModbus implements Closeable {
 		pdu[offset + 1] = lowByte(value);
 	}
 
+	protected void writeBitToPDU(int firstByte, int bitOffset, boolean value) {
+		int offset = firstByte + (bitOffset / 8);
+		byte b = readByteFromPDU(offset);
+		if (value)
+			b = (byte)(b | (1 << (bitOffset % 8)));
+		else
+			b = (byte)(b & ~(1 << (bitOffset % 8)));
+		writeByteToPDU(offset, b);
+	}
+	
 	protected byte readByteFromPDU(int offset) {
 		if ((offset < 0) || (offset >= pduSize))
 			throw new IndexOutOfBoundsException();
@@ -122,4 +130,9 @@ public abstract class AModbus implements Closeable {
 		return Float.intBitsToFloat(readInt32FromPDU(offset, bigEndian));
 	}
 
+	protected boolean readBitFromPDU(int firstByte, int bitOffset) {
+		byte b = readByteFromPDU(firstByte + (bitOffset / 8));
+		return (b & (1 << (bitOffset % 8))) != 0;
+	}
+	
 }

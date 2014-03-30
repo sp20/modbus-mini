@@ -1,13 +1,16 @@
-package ua.com.certa.modbus;
+package ua.com.certa.modbus.client;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import ua.com.certa.modbus.ModbusUtils;
 
 public class ModbusRtuOverTcpClient extends AModbusClient {
 	private static final Logger log = LoggerFactory.getLogger(ModbusRtuOverTcpClient.class);
@@ -16,7 +19,8 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 	private final int remotePort; 
 	private final String localAddressString; // null means any
 	private final int localPort; // zero means any
-	private final int timeout;
+	private final int connectTimeout;
+	private final int responseTimeout;
 	private final int pause;
 	private final boolean keepConnection; 
 
@@ -25,12 +29,13 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 
 	private final byte[] buffer = new byte[MAX_PDU_SIZE + 7]; // Modbus RTU ADU: [ID(1), PDU(n), CRC(2)]
 
-	public ModbusRtuOverTcpClient(String remoteHost, int remotePort, String localIP, int localPort, int timeout, int pause, boolean keepConnection) {
+	public ModbusRtuOverTcpClient(String remoteHost, int remotePort, String localIP, int localPort, int connectTimeout, int responseTimeout, int pause, boolean keepConnection) {
 		this.remoteAddressString = remoteHost;
 		this.remotePort = remotePort;
 		this.localAddressString = (localIP != null) ? localIP : "0.0.0.0";
 		this.localPort = localPort;
-		this.timeout = timeout;
+		this.connectTimeout = connectTimeout;
+		this.responseTimeout = responseTimeout;
 		this.keepConnection = keepConnection;
 		this.pause = pause;
 	}
@@ -39,10 +44,17 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 		if (socket != null)
 			return;
 		log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
-		InetAddress remoteAddress = InetAddress.getByName(remoteAddressString);
-		InetAddress localAddress = InetAddress.getByName(localAddressString);
-		socket = new Socket(remoteAddress, remotePort, localAddress, localPort);
-		socket.setSoTimeout(timeout);
+		InetSocketAddress localAddress = new InetSocketAddress(InetAddress.getByName(localAddressString), localPort);
+		InetSocketAddress remoteAddress = new InetSocketAddress(InetAddress.getByName(remoteAddressString), remotePort);
+		socket = new Socket();
+		try {
+			socket.bind(localAddress);
+			socket.connect(remoteAddress, connectTimeout);
+			socket.setSoTimeout(responseTimeout);
+		} catch (IOException e) {
+			close();
+			throw e;
+		}
 		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
 	}
 
@@ -64,13 +76,9 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 	}
 	
 	@Override
-	protected void sendRequest() throws IOException {
+	protected void sendRequest() throws IOException, InterruptedException {
 		if (pause > 0)
-			try {
-				Thread.sleep(pause);
-			} catch (InterruptedException e) {
-				// ignore
-			}
+			Thread.sleep(pause);
 		openSocket();
 		clearInput();
 		buffer[0] = getServerId();
@@ -88,7 +96,7 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 	private boolean readToBuffer(int start, int length) throws IOException {
 		InputStream in = socket.getInputStream();
 		long now = System.currentTimeMillis();
-		long deadline = now + timeout;
+		long deadline = now + responseTimeout;
 		int offset = start;
 		int bytesToRead = length;
 		int res;
@@ -96,7 +104,9 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 			try {
 				res = in.read(buffer, offset, bytesToRead);
 			} catch (SocketTimeoutException e) {
-				break;
+				res = 0;
+				log.debug("readToBuffer(): SocketTimeoutException");
+				// do not break, because SocketTimeoutException may appear before deadline
 			}
 			if (res < 0)
 				break;
@@ -137,16 +147,19 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 	public int readIdToBuffer(byte expected) throws IOException {
 		InputStream in = socket.getInputStream();
 		long now = System.currentTimeMillis();
-		long deadline = now + timeout;
+		long deadline = now + responseTimeout;
 		int res = 0;
 		while (now < deadline) {
 			try {
 				res = in.read(buffer, 0, 1);
 			} catch (SocketTimeoutException e) {
-				//log.warn("Response timeout");
-				return RESULT_TIMEOUT;
+				res = 0;
+				log.debug("readIdToBuffer(): SocketTimeoutException");
+				// return RESULT_TIMEOUT;    do not return, because SocketTimeoutException may appear before deadline 
 			}
-			if (res >= 0) {
+			if (res < 0) // End of file ? (see InputStream.read())
+				break;
+			if (res > 0) { // check id and exit if it's correct
 				if (buffer[0] == expected)
 					return RESULT_OK;
 				else {
@@ -154,6 +167,9 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 					//log.warn("Unexpected id: {} (need {})", buffer[0], expected);
 				}
 			}
+			// don't check for timeout if there are some bytes in input buffer
+			if (in.available() <= 0)
+				now = System.currentTimeMillis();
 		}
 		return RESULT_TIMEOUT;
 	}

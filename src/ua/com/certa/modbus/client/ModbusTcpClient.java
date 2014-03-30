@@ -1,13 +1,16 @@
-package ua.com.certa.modbus;
+package ua.com.certa.modbus.client;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import ua.com.certa.modbus.ModbusUtils;
 
 public class ModbusTcpClient extends AModbusClient {
 	private static final Logger log = LoggerFactory.getLogger(ModbusTcpClient.class);
@@ -16,7 +19,8 @@ public class ModbusTcpClient extends AModbusClient {
 	private final int remotePort; // zero means default (502) 
 	private final String localAddressString; // null means any
 	private final int localPort; // zero means any
-	private final int timeout;
+	private final int connectTimeout;
+	private final int responseTimeout;
 	private final int pause;
 	private final boolean keepConnection; 
 
@@ -26,24 +30,32 @@ public class ModbusTcpClient extends AModbusClient {
 
 	private final byte[] buffer = new byte[MAX_PDU_SIZE + 7]; // Modbus TCP/IP ADU: [MBAP(7), PDU(n)]
 
-	public ModbusTcpClient(String remoteHost, int remotePort, String localIP, int localPort, int timeout, int pause, boolean keepConnection) {
+	public ModbusTcpClient(String remoteHost, int remotePort, String localIP, int localPort, int connectTimeout, int responseTimeout, int pause, boolean keepConnection) {
 		this.remoteAddressString = remoteHost;
 		this.remotePort = (remotePort == 0) ? 502 : remotePort;
 		this.localAddressString = (localIP != null) ? localIP : "0.0.0.0";
 		this.localPort = localPort;
-		this.timeout = timeout;
-		this.pause = pause;
+		this.connectTimeout = connectTimeout;
+		this.responseTimeout = responseTimeout;
 		this.keepConnection = keepConnection;
+		this.pause = pause;
 	}
 
 	private void openSocket() throws IOException {
 		if (socket != null)
 			return;
 		log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
-		InetAddress remoteAddress = InetAddress.getByName(remoteAddressString);
-		InetAddress localAddress = InetAddress.getByName(localAddressString);
-		socket = new Socket(remoteAddress, remotePort, localAddress, localPort);
-		socket.setSoTimeout(timeout);
+		InetSocketAddress localAddress = new InetSocketAddress(InetAddress.getByName(localAddressString), localPort);
+		InetSocketAddress remoteAddress = new InetSocketAddress(InetAddress.getByName(remoteAddressString), remotePort);
+		socket = new Socket();
+		try {
+			socket.bind(localAddress);
+			socket.connect(remoteAddress, connectTimeout);
+			socket.setSoTimeout(responseTimeout);
+		} catch (IOException e) {
+			close();
+			throw e;
+		}
 		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
 	}
 
@@ -65,14 +77,9 @@ public class ModbusTcpClient extends AModbusClient {
 	}
 	
 	@Override
-	protected void sendRequest() throws IOException {
+	protected void sendRequest() throws IOException, InterruptedException {
 		if (pause > 0)
-			try {
-				Thread.sleep(pause);
-			} catch (InterruptedException e) {
-				// ignore
-			}
-
+			Thread.sleep(pause);
 		openSocket();
 		clearInput();
 		transactionId++;
@@ -95,33 +102,34 @@ public class ModbusTcpClient extends AModbusClient {
 	private boolean readToBuffer(int start, int length) throws IOException {
 		InputStream in = socket.getInputStream();
 		long now = System.currentTimeMillis();
-		long deadline = now + timeout;
+		long deadline = now + responseTimeout;
 		int offset = start;
 		int bytesToRead = length;
 		int res;
-		try {
-			while ((now < deadline) && (bytesToRead > 0)) {
+		while ((now < deadline) && (bytesToRead > 0)) {
+			try {
 				res = in.read(buffer, offset, bytesToRead);
-				if (res < 0)
-					break;
-				offset += res;
-				bytesToRead -= res;
-				if (bytesToRead > 0) // only to avoid redundant call of System.currentTimeMillis()
-					now = System.currentTimeMillis();
+			} catch (SocketTimeoutException e) {
+				res = 0;
+				log.debug("readToBuffer(): SocketTimeoutException");
+				// do not break, because SocketTimeoutException may appear before deadline
 			}
-			res = length - bytesToRead; // total bytes read
-			if (res < length) {
-				if ((res > 0) && log.isTraceEnabled())
-					log.trace("Read (incomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
-				log.warn("Response timeout ({} bytes, need {})", start + res, expectedBytes);
-				return false;
-			}
-			else
-				return true;
-		} catch (SocketTimeoutException e) {
-			log.warn("Response SocketTimeoutException");
+			if (res < 0)
+				break;
+			offset += res;
+			bytesToRead -= res;
+			if (bytesToRead > 0) // only to avoid redundant call of System.currentTimeMillis()
+				now = System.currentTimeMillis();
+		}
+		res = length - bytesToRead; // total bytes read
+		if (res < length) {
+			if ((res > 0) && log.isTraceEnabled())
+				log.trace("Read (incomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
+			log.warn("Response timeout ({} bytes, need {})", start + res, expectedBytes);
 			return false;
 		}
+		else
+			return true;
 	}
 
 	private void logData(String kind, int start, int length) {

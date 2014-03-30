@@ -1,8 +1,7 @@
 package ua.com.certa.modbus.samples;
 
-import ua.com.certa.modbus.AModbusClient;
-import ua.com.certa.modbus.ModbusRtuClientJssc;
-
+import ua.com.certa.modbus.client.AModbusClient;
+import ua.com.certa.modbus.client.ModbusRtuClientJssc;
 import jssc.SerialPort;
 
 public class SerialClientJssc {
