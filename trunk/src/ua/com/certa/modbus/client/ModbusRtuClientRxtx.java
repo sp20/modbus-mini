@@ -1,19 +1,24 @@
-package ua.com.certa.modbus;
+package ua.com.certa.modbus.client;
 
-import java.util.Arrays;
-
-import jssc.SerialPort;
-import jssc.SerialPortException;
+import java.io.IOException;
+import java.io.InputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ModbusRtuClientJssc extends AModbusClient {
-	private static final Logger log = LoggerFactory.getLogger(ModbusRtuClientJssc.class);
+import ua.com.certa.modbus.ModbusUtils;
+import gnu.io.CommPortIdentifier;
+import gnu.io.NoSuchPortException;
+import gnu.io.PortInUseException;
+import gnu.io.SerialPort;
+import gnu.io.UnsupportedCommOperationException;
+
+public class ModbusRtuClientRxtx extends AModbusClient {
+	private static final Logger log = LoggerFactory.getLogger(ModbusRtuClientRxtx.class);
 
 	private SerialPort port;
 	private final String portName;
-	private final int baudRate;
+	private final int baudrate;
 	private final int dataBits;
 	private final int parity;
 	private final int stopBits;
@@ -23,9 +28,9 @@ public class ModbusRtuClientJssc extends AModbusClient {
 	private final byte[] buffer = new byte[MAX_PDU_SIZE + 3]; // ADU: [ID(1), PDU(n), CRC(2)]
 	private int expectedBytes; // for logging
 
-	public ModbusRtuClientJssc(String portName, int baudRate, int dataBits, int parity, int stopBits, int timeout, int pause) {
+	public ModbusRtuClientRxtx(String portName, int baudRate, int dataBits, int parity, int stopBits, int timeout, int pause) {
 		this.portName = portName;
-		this.baudRate = baudRate;
+		this.baudrate = baudRate;
 		this.dataBits = dataBits;
 		this.parity = parity;
 		this.stopBits = stopBits;
@@ -33,27 +38,34 @@ public class ModbusRtuClientJssc extends AModbusClient {
 		this.pause = pause;
 	}
 
-	private void openPort() throws SerialPortException {
+	private void openPort() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException {
 		if (port != null)
 			return;
-		log.info("Opening port: {}", portName);
-		port = new SerialPort(portName);
+		log.info("Opening port: " + portName);
+		CommPortIdentifier ident = CommPortIdentifier.getPortIdentifier(portName);
+		port = ident.open("ModbusRtuClient on " + portName, 2000);
+		port.setOutputBufferSize(buffer.length);
+		port.setInputBufferSize(buffer.length);
 		try {
-			port.openPort();
-	        port.setParams(baudRate, dataBits, stopBits, parity);
-		} catch (SerialPortException e) {
+			port.setSerialPortParams(baudrate, dataBits, stopBits, parity);				
+			port.enableReceiveTimeout(timeout);
+			port.setFlowControlMode(SerialPort.FLOWCONTROL_NONE);
+		} catch (UnsupportedCommOperationException e) {
 			close();
 			throw e;
 		}
-		log.info("Port opened: {}", port.getPortName());
+		log.info("Port opened: " + port.getName());
 	}
 
-	public void clearInput() throws SerialPortException {
-		byte[] buf = port.readBytes();
-		while (buf != null) {
+	public void clearInput() throws IOException {
+		InputStream in = port.getInputStream();
+		int avail = in.available();
+		while (avail > 0) {
+			int count = Math.min(avail, buffer.length);
+			in.read(buffer, 0, count);
 			if (log.isWarnEnabled())
-				log.warn("Unexpected input: " + ModbusUtils.toHex(buf, 0, buf.length));
-			buf = port.readBytes();
+				log.warn("Unexpected input: " + ModbusUtils.toHex(buffer, 0, count));
+			avail = in.available();
 		}
 	}
 
@@ -63,7 +75,7 @@ public class ModbusRtuClientJssc extends AModbusClient {
 	}
 	
 	@Override
-	protected void sendRequest() throws SerialPortException {
+	protected void sendRequest() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException {
 		if (pause > 0)
 			try {
 				Thread.sleep(pause);
@@ -81,7 +93,8 @@ public class ModbusRtuClientJssc extends AModbusClient {
 		size = size + 2;
 		if (log.isTraceEnabled())
 			log.trace("Write: " + ModbusUtils.toHex(buffer, 0, size));
-		port.writeBytes(Arrays.copyOfRange(buffer, 0, size));
+		port.getOutputStream().write(buffer, 0, size);
+		port.getOutputStream().flush();
 	}
 
 	private boolean crcValid(int size) {
@@ -96,26 +109,23 @@ public class ModbusRtuClientJssc extends AModbusClient {
 		}
 	}
 	
-	private boolean readToBuffer(int start, int length) throws SerialPortException, InterruptedException {
+	private boolean readToBuffer(int start, int length) throws IOException {
+		InputStream in = port.getInputStream();
 		long now = System.currentTimeMillis();
 		long deadline = now + timeout;
 		int offset = start;
 		int bytesToRead = length;
+		int res;
 		while ((now < deadline) && (bytesToRead > 0)) {
-			int avail = Math.min(port.getInputBufferBytesCount(), bytesToRead);
-			if (avail > 0) {
-				byte[] buf = port.readBytes(avail);
-				avail = buf.length;
-				System.arraycopy(buf, 0, buffer, offset, avail);
-				offset += avail;
-				bytesToRead -= avail;
-			}
-			if (bytesToRead > 0) {
-				Thread.sleep(100);
+			res = in.read(buffer, offset, bytesToRead);
+			if (res < 0)
+				break;
+			offset += res;
+			bytesToRead -= res;
+			if (bytesToRead > 0) // only to avoid redundant call of System.currentTimeMillis()
 				now = System.currentTimeMillis();
-			}
 		}
-		int res = length - bytesToRead; // total bytes read
+		res = length - bytesToRead; // total bytes read
 		if (res < length) {
 			if ((res > 0) && log.isTraceEnabled())
 				log.trace("Read (incomplete): " + ModbusUtils.toHex(buffer, 0, start + res));
@@ -131,19 +141,35 @@ public class ModbusRtuClientJssc extends AModbusClient {
 			log.trace("Read ({}): {}", kind, ModbusUtils.toHex(buffer, start, length));
 	}
 	
+	// returns RESULT_*
+	public int readIdToBuffer(byte expected) throws IOException {
+		InputStream in = port.getInputStream();
+		long now = System.currentTimeMillis();
+		long deadline = now + timeout;
+		int res = 0;
+		while (now < deadline) {
+			res = in.read(buffer, 0, 1);
+			if (res >= 0) {
+				if (buffer[0] == expected)
+					return RESULT_OK;
+				else {
+					logData("bad id", 0, 1);
+					//log.warn("Unexpected id: {} (need {})", buffer[0], expected);
+				}
+			}
+		}
+		return RESULT_TIMEOUT;
+	}
+
 	@Override
-	protected int waitResponse() throws SerialPortException, InterruptedException  {
+	protected int waitResponse() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException {
 		openPort();
 		expectedBytes = getExpectedPduSize() + 3; // id(1), PDU(n), crc(2)
 		
 		// read id
-		if (!readToBuffer(0, 1))
-			return RESULT_TIMEOUT;
-		if (buffer[0] != getServerId()) {
-			logData("bad id", 0, 1);
-			log.warn("waitResponse(): Invalid id: {} (expected: {})", buffer[0], getServerId());
-			return RESULT_BAD_RESPONSE;
-		}
+		int r = readIdToBuffer(getServerId());
+		if (r != RESULT_OK)
+			return r;
 
 		// read function (bit7 means exception)
 		if (!readToBuffer(1, 1))
@@ -192,14 +218,10 @@ public class ModbusRtuClientJssc extends AModbusClient {
 	public void close() {
 		SerialPort t = port;
 		port = null;
-		if ((t != null) && (t.isOpened())) {
-			log.info("Closing port: {}", portName);
-			try {
-				t.closePort();
-			} catch (SerialPortException e) {
-				log.error("Error closing port {}. {}", portName, e);
-			}
-			log.info("Port {} closed", portName);
+		if (t != null) {
+			log.info("Closing port: " + t.getName());
+			t.close();
+			log.info("Port closed: " + portName);
 		}
 	}
 

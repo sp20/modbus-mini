@@ -6,6 +6,6 @@
 	<classpathentry kind="lib" path="lib/slf4j-api-1.7.2.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="lib/nrjavaserial-3.8.8.jar"/>
-	<classpathentry kind="lib" path="lib/jssc.jar"/>
+	<classpathentry kind="lib" path="lib/jssc-2.8.0.jar" sourcepath="lib/src/jssc-2.8.0-sources.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

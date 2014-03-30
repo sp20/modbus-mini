@@ -1,9 +1,8 @@
 package ua.com.certa.modbus.samples;
 
-import ua.com.certa.modbus.AModbusClient;
-import ua.com.certa.modbus.ModbusRtuClientRxtx;
-
 import gnu.io.SerialPort;
+import ua.com.certa.modbus.client.AModbusClient;
+import ua.com.certa.modbus.client.ModbusRtuClientRxtx;
 
 public class SerialClientRxtx {
 
