@@ -24,7 +24,7 @@ public abstract class AModbusServerConnection extends AModbus {
 		writeByteToPDU(1, (byte)code);
 	}
 	
-	private boolean validRange(int startAddr, int count, ATable table, String name, int maxCount) {
+	private boolean validRange(int startAddr, int count, RegistersTable table, String name, int maxCount) {
 		if ((count < 1) || (count > maxCount)) {
 			server.log.warn("Invalid {} count ({}). Must be 1..{}", name, count, maxCount);
 			setException(3);
@@ -49,7 +49,7 @@ public abstract class AModbusServerConnection extends AModbus {
 		return true;
 	}
 	
-	private void processReadBits(BitTable table, String name) {
+	private void processReadBits(RegistersTable table, String name) {
 		int addr = readInt16FromPDU(1);
 		int count = readInt16FromPDU(3);
 		server.log.debug("Read {}: addr={}, count={}", name, addr, count);
@@ -61,10 +61,10 @@ public abstract class AModbusServerConnection extends AModbus {
 		for (int i = 0; i < nBytes; i++)
 			writeByteToPDU(2 + i, (byte)0);
 		for (int i = 0; i < count; i++)
-			writeBitToPDU(2, i, table.get(i));
+			writeBitToPDU(2, i, table.getBool(i));
 	}
 	
-	private void processReadInts(IntTable table, String name) {
+	private void processReadInts(RegistersTable table, String name) {
 		int addr = readInt16FromPDU(1);
 		int count = readInt16FromPDU(3);
 		server.log.debug("Read {}: addr={}, count={}", name, addr, count);
@@ -74,7 +74,7 @@ public abstract class AModbusServerConnection extends AModbus {
 		setPduSize(2 + nBytes);
 		writeByteToPDU(1, (byte)nBytes);
 		for (int i = 0; i < count; i++) {
-			writeInt16ToPDU(2 + i * 2, table.get(addr + i));
+			writeInt16ToPDU(2 + i * 2, table.getInt(addr + i));
 		}
 		
 	}

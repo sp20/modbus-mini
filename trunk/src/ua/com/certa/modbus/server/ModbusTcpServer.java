@@ -30,9 +30,9 @@ public class ModbusTcpServer extends AModbusServer implements Runnable {
 	
 	public ModbusTcpServer(String localIP, int localPort, int clientTimeout, 
 			int inputsStart, int inputsCount, int coilsStart, int coilsCount,
-			int iregsStart, int iregsCount, int hregsStart, int hregsCount, ModbusWriteHandler handler) 
+			int iregsStart, int iregsCount, int hregsStart, int hregsCount) 
 	{
-		super(inputsStart, inputsCount, coilsStart, coilsCount, iregsStart, iregsCount, hregsStart, hregsCount, handler);
+		super(inputsStart, inputsCount, coilsStart, coilsCount, iregsStart, iregsCount, hregsStart, hregsCount);
 		this.localAddressString = (localIP != null) ? localIP : "0.0.0.0";
 		this.localPort = localPort;
 		this.clientTimeout = clientTimeout;
