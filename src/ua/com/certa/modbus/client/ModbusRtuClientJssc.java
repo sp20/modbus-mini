@@ -13,8 +13,7 @@ import ua.com.certa.modbus.ModbusUtils;
 public class ModbusRtuClientJssc extends AModbusClient {
 	private static final Logger log = LoggerFactory.getLogger(ModbusRtuClientJssc.class);
 
-	private SerialPort port;
-	private final String portName;
+	private final SerialPort port;
 	private final int baudRate;
 	private final int dataBits;
 	private final int parity;
@@ -26,7 +25,7 @@ public class ModbusRtuClientJssc extends AModbusClient {
 	private int expectedBytes; // for logging
 
 	public ModbusRtuClientJssc(String portName, int baudRate, int dataBits, int parity, int stopBits, int timeout, int pause) {
-		this.portName = portName;
+		this.port = new SerialPort(portName);
 		this.baudRate = baudRate;
 		this.dataBits = dataBits;
 		this.parity = parity;
@@ -35,19 +34,33 @@ public class ModbusRtuClientJssc extends AModbusClient {
 		this.pause = pause;
 	}
 
-	private void openPort() throws SerialPortException {
-		if (port != null)
-			return;
-		log.info("Opening port: {}", portName);
-		port = new SerialPort(portName);
-		try {
-			port.openPort();
-	        port.setParams(baudRate, dataBits, stopBits, parity);
-		} catch (SerialPortException e) {
-			close();
-			throw e;
+	// this method must be synchronized with close()
+	synchronized private void openPort() throws SerialPortException {
+		if (!port.isOpened()) {
+			log.info("Opening port: {}", port.getPortName());
+			try {
+				port.openPort();
+				port.setParams(baudRate, dataBits, stopBits, parity);
+			} catch (SerialPortException e) {
+				close();
+				throw e;
+			}
+			log.info("Port opened: {}", port.getPortName());
 		}
-		log.info("Port opened: {}", port.getPortName());
+	}
+
+	// this method may be called from other thread
+	@Override
+	synchronized public void close() {
+		if (port.isOpened()) {
+			log.info("Closing port: {}", port.getPortName());
+			try {
+				port.closePort();
+			} catch (SerialPortException e) {
+				log.error("Error closing port {}: {}", port.getPortName(), e);
+			}
+			log.info("Port {} closed", port.getPortName());
+		}
 	}
 
 	public void clearInput() throws SerialPortException {
@@ -65,13 +78,9 @@ public class ModbusRtuClientJssc extends AModbusClient {
 	}
 	
 	@Override
-	protected void sendRequest() throws SerialPortException {
+	protected void sendRequest() throws SerialPortException, InterruptedException {
 		if (pause > 0)
-			try {
-				Thread.sleep(pause);
-			} catch (InterruptedException e) {
-				// ignore
-			}
+			Thread.sleep(pause);
 		openPort();
 		clearInput();
 		buffer[0] = getServerId();
@@ -187,21 +196,6 @@ public class ModbusRtuClientJssc extends AModbusClient {
 				logData("bad crc", 0, expectedBytes);
 				return RESULT_BAD_RESPONSE;
 			}
-		}
-	}
-
-	@Override
-	public void close() {
-		SerialPort t = port;
-		port = null;
-		if ((t != null) && (t.isOpened())) {
-			log.info("Closing port: {}", portName);
-			try {
-				t.closePort();
-			} catch (SerialPortException e) {
-				log.error("Error closing port {}. {}", portName, e);
-			}
-			log.info("Port {} closed", portName);
 		}
 	}
 

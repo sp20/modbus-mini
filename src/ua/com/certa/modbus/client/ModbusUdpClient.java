@@ -39,17 +39,28 @@ public class ModbusUdpClient extends AModbusClient {
 		this.pause = pause;
 	}
 
-	private void openSocket() throws SocketException, UnknownHostException {
-		if (socket != null)
-			return;
-		log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
-		InetSocketAddress remoteAddress = new InetSocketAddress(remoteAddressString, remotePort);
-		InetSocketAddress localAddress = new InetSocketAddress(localAddressString, localPort);
-		socket = new DatagramSocket(localAddress);
-		socket.setSoTimeout(timeout);
-		inPacket = new DatagramPacket(buffer, buffer.length);
-		outPacket = new DatagramPacket(buffer, buffer.length, remoteAddress);
-		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), outPacket.getSocketAddress());
+	// this method must be synchronized with close()
+	synchronized private void openSocket() throws SocketException, UnknownHostException {
+		if ((socket == null) || socket.isClosed()) {
+			log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
+			InetSocketAddress remoteAddress = new InetSocketAddress(remoteAddressString, remotePort);
+			InetSocketAddress localAddress = new InetSocketAddress(localAddressString, localPort);
+			socket = new DatagramSocket(localAddress);
+			socket.setSoTimeout(timeout);
+			inPacket = new DatagramPacket(buffer, buffer.length);
+			outPacket = new DatagramPacket(buffer, buffer.length, remoteAddress);
+			log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), outPacket.getSocketAddress());
+		}
+	}
+
+	// this method may be called from other thread
+	@Override
+	synchronized public void close() {
+		if ((socket != null) && !socket.isClosed()) {
+			log.info("Closing socket");
+			socket.close();
+			log.info("Socket closed");
+		}
 	}
 
 	@Override
@@ -140,16 +151,4 @@ public class ModbusUdpClient extends AModbusClient {
 			return RESULT_OK;
 		}
 	}
-
-	@Override
-	public void close() {
-		DatagramSocket t = socket;
-		socket = null;
-		if (t != null) {
-			log.info("Closing socket");
-			t.close();
-			log.info("Socket closed");
-		}
-	}
-
 }
