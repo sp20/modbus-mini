@@ -27,7 +27,7 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 	private Socket socket;
 	private int expectedBytes; // for logging
 
-	private final byte[] buffer = new byte[MAX_PDU_SIZE + 7]; // Modbus RTU ADU: [ID(1), PDU(n), CRC(2)]
+	private final byte[] buffer = new byte[MAX_PDU_SIZE + 3]; // Modbus RTU ADU: [ID(1), PDU(n), CRC(2)]
 
 	public ModbusRtuOverTcpClient(String remoteHost, int remotePort, String localIP, int localPort, int connectTimeout, int responseTimeout, int pause, boolean keepConnection) {
 		this.remoteAddressString = remoteHost;
@@ -40,22 +40,37 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 		this.pause = pause;
 	}
 
-	private void openSocket() throws IOException {
-		if (socket != null)
-			return;
-		log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
-		InetSocketAddress localAddress = new InetSocketAddress(InetAddress.getByName(localAddressString), localPort);
-		InetSocketAddress remoteAddress = new InetSocketAddress(InetAddress.getByName(remoteAddressString), remotePort);
-		socket = new Socket();
-		try {
-			socket.bind(localAddress);
-			socket.connect(remoteAddress, connectTimeout);
-			socket.setSoTimeout(responseTimeout);
-		} catch (IOException e) {
-			close();
-			throw e;
+	// this method must be synchronized with close()
+	synchronized private void openSocket() throws IOException {
+		if ((socket == null) || socket.isClosed()) {
+			log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
+			InetSocketAddress localAddress = new InetSocketAddress(InetAddress.getByName(localAddressString), localPort);
+			InetSocketAddress remoteAddress = new InetSocketAddress(InetAddress.getByName(remoteAddressString), remotePort);
+			socket = new Socket();
+			try {
+				socket.bind(localAddress);
+				socket.connect(remoteAddress, connectTimeout);
+				socket.setSoTimeout(responseTimeout);
+			} catch (IOException e) {
+				close();
+				throw e;
+			}
+			log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
 		}
-		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
+	}
+
+	// this method may be called from other thread
+	@Override
+	synchronized public void close() {
+		if ((socket != null) && !socket.isClosed()) {
+			log.info("Closing socket");
+			try {
+				socket.close();
+			} catch (IOException e) {
+				log.error("Error closing socket {}: {}", socket.getRemoteSocketAddress(), e);
+			}
+			log.info("Socket closed");
+		}
 	}
 
 	public void clearInput() throws IOException {
@@ -229,17 +244,6 @@ public class ModbusRtuOverTcpClient extends AModbusClient {
 		} finally {
 			if (!keepConnection)
 				close();
-		}
-	}
-
-	@Override
-	public void close() throws IOException {
-		Socket t = socket;
-		socket = null;
-		if (t != null) {
-			log.info("Closing socket");
-			t.close();
-			log.info("Socket closed");
 		}
 	}
 

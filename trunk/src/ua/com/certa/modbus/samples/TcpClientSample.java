@@ -1,6 +1,5 @@
 package ua.com.certa.modbus.samples;
 
-import java.io.IOException;
 import java.util.Scanner;
 
 import ua.com.certa.modbus.client.AModbusClient;
@@ -37,11 +36,7 @@ public class TcpClientSample {
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				mc.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			mc.close();
 		}
 	}
 

@@ -27,7 +27,7 @@ public class ModbusRtuOverUdpClient extends AModbusClient {
 	private DatagramPacket inPacket;
 	private DatagramPacket outPacket;
 
-	private final byte[] buffer = new byte[MAX_PDU_SIZE + 7]; // Modbus RTU ADU: [ID(1), PDU(n), CRC(2)]
+	private final byte[] buffer = new byte[MAX_PDU_SIZE + 3]; // Modbus RTU ADU: [ID(1), PDU(n), CRC(2)]
 
 	public ModbusRtuOverUdpClient(String remoteHost, int remotePort, String localIP, int localPort, int timeout, int pause) {
 		this.remoteAddressString = remoteHost;
@@ -38,17 +38,28 @@ public class ModbusRtuOverUdpClient extends AModbusClient {
 		this.pause = pause;
 	}
 
-	private void openSocket() throws SocketException, UnknownHostException {
-		if (socket != null)
-			return;
-		log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
-		InetSocketAddress remoteAddress = new InetSocketAddress(remoteAddressString, remotePort);
-		InetSocketAddress localAddress = new InetSocketAddress(localAddressString, localPort);
-		socket = new DatagramSocket(localAddress);
-		socket.setSoTimeout(timeout);
-		inPacket = new DatagramPacket(buffer, buffer.length);
-		outPacket = new DatagramPacket(buffer, buffer.length, remoteAddress);
-		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), outPacket.getSocketAddress());
+	// this method must be synchronized with close()
+	synchronized private void openSocket() throws SocketException, UnknownHostException {
+		if ((socket == null) || socket.isClosed()) {
+			log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
+			InetSocketAddress remoteAddress = new InetSocketAddress(remoteAddressString, remotePort);
+			InetSocketAddress localAddress = new InetSocketAddress(localAddressString, localPort);
+			socket = new DatagramSocket(localAddress);
+			socket.setSoTimeout(timeout);
+			inPacket = new DatagramPacket(buffer, buffer.length);
+			outPacket = new DatagramPacket(buffer, buffer.length, remoteAddress);
+			log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), outPacket.getSocketAddress());
+		}
+	}
+
+	// this method may be called from other thread
+	@Override
+	synchronized public void close() {
+		if ((socket != null) && !socket.isClosed()) {
+			log.info("Closing socket");
+			socket.close();
+			log.info("Socket closed");
+		}
 	}
 
 	@Override
@@ -150,16 +161,4 @@ public class ModbusRtuOverUdpClient extends AModbusClient {
 			return RESULT_OK;
 		}
 	}
-
-	@Override
-	public void close() {
-		DatagramSocket t = socket;
-		socket = null;
-		if (t != null) {
-			log.info("Closing socket");
-			t.close();
-			log.info("Socket closed");
-		}
-	}
-
 }

@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ua.com.certa.modbus.ModbusUtils;
+import ua.com.certa.modbus.client.AModbusClient;
 import gnu.io.CommPortIdentifier;
 import gnu.io.NoSuchPortException;
 import gnu.io.PortInUseException;
@@ -38,7 +39,8 @@ public class ModbusRtuClientRxtx extends AModbusClient {
 		this.pause = pause;
 	}
 
-	private void openPort() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException {
+	// this method must be synchronized with close()
+	synchronized private void openPort() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException {
 		if (port != null)
 			return;
 		log.info("Opening port: " + portName);
@@ -55,6 +57,18 @@ public class ModbusRtuClientRxtx extends AModbusClient {
 			throw e;
 		}
 		log.info("Port opened: " + port.getName());
+	}
+
+	// this method may be called in other thread
+	@Override
+	synchronized public void close() {
+		SerialPort t = port;
+		port = null;  // this may lead to NullPointerException in parallel thread, but I can't see good solution
+		if (t != null) {
+			log.info("Closing port: " + t.getName());
+			t.close();
+			log.info("Port closed: " + portName);
+		}
 	}
 
 	public void clearInput() throws IOException {
@@ -75,13 +89,9 @@ public class ModbusRtuClientRxtx extends AModbusClient {
 	}
 	
 	@Override
-	protected void sendRequest() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException {
+	protected void sendRequest() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException, InterruptedException {
 		if (pause > 0)
-			try {
-				Thread.sleep(pause);
-			} catch (InterruptedException e) {
-				// ignore
-			}
+			Thread.sleep(pause);
 		openPort();
 		clearInput();
 		buffer[0] = getServerId();
@@ -211,17 +221,6 @@ public class ModbusRtuClientRxtx extends AModbusClient {
 				logData("bad crc", 0, expectedBytes);
 				return RESULT_BAD_RESPONSE;
 			}
-		}
-	}
-
-	@Override
-	public void close() {
-		SerialPort t = port;
-		port = null;
-		if (t != null) {
-			log.info("Closing port: " + t.getName());
-			t.close();
-			log.info("Port closed: " + portName);
 		}
 	}
 

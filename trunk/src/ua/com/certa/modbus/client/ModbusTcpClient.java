@@ -41,22 +41,37 @@ public class ModbusTcpClient extends AModbusClient {
 		this.pause = pause;
 	}
 
-	private void openSocket() throws IOException {
-		if (socket != null)
-			return;
-		log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
-		InetSocketAddress localAddress = new InetSocketAddress(InetAddress.getByName(localAddressString), localPort);
-		InetSocketAddress remoteAddress = new InetSocketAddress(InetAddress.getByName(remoteAddressString), remotePort);
-		socket = new Socket();
-		try {
-			socket.bind(localAddress);
-			socket.connect(remoteAddress, connectTimeout);
-			socket.setSoTimeout(responseTimeout);
-		} catch (IOException e) {
-			close();
-			throw e;
+	// this method must be synchronized with close()
+	synchronized private void openSocket() throws IOException {
+		if ((socket == null) || socket.isClosed()) {
+			log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
+			InetSocketAddress localAddress = new InetSocketAddress(InetAddress.getByName(localAddressString), localPort);
+			InetSocketAddress remoteAddress = new InetSocketAddress(InetAddress.getByName(remoteAddressString), remotePort);
+			socket = new Socket();
+			try {
+				socket.bind(localAddress);
+				socket.connect(remoteAddress, connectTimeout);
+				socket.setSoTimeout(responseTimeout);
+			} catch (IOException e) {
+				close();
+				throw e;
+			}
+			log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
 		}
-		log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
+	}
+
+	// this method may be called from other thread
+	@Override
+	synchronized public void close() {
+		if ((socket != null) && !socket.isClosed()) {
+			log.info("Closing socket");
+			try {
+				socket.close();
+			} catch (IOException e) {
+				log.error("Error closing socket {}: {}", socket.getRemoteSocketAddress(), e);
+			}
+			log.info("Socket closed");
+		}
 	}
 
 	public void clearInput() throws IOException {
@@ -189,16 +204,4 @@ public class ModbusTcpClient extends AModbusClient {
 				close();
 		}
 	}
-
-	@Override
-	public void close() throws IOException {
-		Socket t = socket;
-		socket = null;
-		if (t != null) {
-			log.info("Closing socket");
-			t.close();
-			log.info("Socket closed");
-		}
-	}
-
 }
