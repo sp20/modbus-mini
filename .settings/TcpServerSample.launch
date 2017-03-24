@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <launchConfiguration type="org.eclipse.jdt.launching.localJavaApplication">
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
-<listEntry value="/modbus-mini/src/ua/com/certa/modbus/samples/TcpServerSample.java"/>
+<listEntry value="/modbus-mini/src/certa/modbus/samples/TcpServerSample.java"/>
 </listAttribute>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
 <listEntry value="1"/>
@@ -12,6 +12,6 @@
 <listEntry value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;runtimeClasspathEntry internalArchive=&quot;/modbus-mini&quot; path=&quot;3&quot; type=&quot;2&quot;/&gt;&#13;&#10;"/>
 </listAttribute>
 <booleanAttribute key="org.eclipse.jdt.launching.DEFAULT_CLASSPATH" value="false"/>
-<stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="ua.com.certa.modbus.samples.TcpServerSample"/>
+<stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="certa.modbus.samples.TcpServerSample"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="modbus-mini"/>
 </launchConfiguration>
