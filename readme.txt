@@ -1,4 +1,4 @@
-modbus-mini - Simple Modbus protocol implementation in Java 1.7+
+modbus-mini - Simple Modbus protocol implementation for Java 1.7+
 https://github.com/sp20/modbus-mini/
 
 Modbus RTU, TCP and UDP clients with functions 1, 2, 3, 4, 5, 6, 15, 16 are implemented at the moment.
