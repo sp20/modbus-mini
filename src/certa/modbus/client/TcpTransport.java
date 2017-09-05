@@ -100,8 +100,8 @@ public class TcpTransport extends AbstractTcpTransport {
 				log.debug("readToBuffer(): SocketTimeoutException");
 				// do not break, because SocketTimeoutException may appear before deadline
 			}
-			if (res < 0)
-				break;
+			if (res < 0) // -1 means End Of File. Socket must be closed and reopened.
+				throw new IOException("Socket's InputStream is at End Of File");
 			offset += res;
 			bytesToRead -= res;
 			if (bytesToRead > 0) // only to avoid redundant call of System.currentTimeMillis()
