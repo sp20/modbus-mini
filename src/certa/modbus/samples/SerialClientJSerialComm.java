@@ -1,16 +1,18 @@
 package certa.modbus.samples;
 
-import certa.modbus.client.ModbusClient;
-import certa.modbus.client.TcpTransport;
+import com.fazecast.jSerialComm.SerialPort;
 
-public class TcpClientSample {
+import certa.modbus.client.ModbusClient;
+import certa.modbus.client.RtuTransportJSerialComm;
+
+public class SerialClientJSerialComm {
 
 	public static void main(String[] args) {
 	
 		ModbusClient mc = new ModbusClient();
-		mc.setTransport(new TcpTransport("192.168.1.5", 502, null, 0, 1000, 300, 100, true));
+		mc.setTransport(new RtuTransportJSerialComm("COM9", 38400, 8, SerialPort.NO_PARITY, SerialPort.ONE_STOP_BIT, 1000, 5));
 		
-		mc.InitReadHoldingsRequest(1, 2, 10);
+		mc.InitReadHoldingsRequest(1, 0, 10);
 
 		try {
 			mc.execRequest();
@@ -22,6 +24,7 @@ public class TcpClientSample {
 		} finally {
 			mc.close();
 		}
+		
 	}
 
 }

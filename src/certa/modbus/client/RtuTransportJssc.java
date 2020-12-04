@@ -36,7 +36,7 @@ public class RtuTransportJssc extends AbstractRtuTransport {
 	
 	// this method must be synchronized with close()
 	@Override
-	synchronized protected void openPort() throws SerialPortException, InterruptedException {
+	synchronized protected boolean openPort() throws SerialPortException, InterruptedException {
 		if (Thread.currentThread().isInterrupted())
 			throw new InterruptedException();
 		if (!port.isOpened()) {
@@ -50,6 +50,7 @@ public class RtuTransportJssc extends AbstractRtuTransport {
 			}
 			log.info("Port opened: {}", port.getPortName());
 		}
+		return true;
 	}
 
 	// this method may be called from other thread

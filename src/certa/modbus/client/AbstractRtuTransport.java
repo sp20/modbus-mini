@@ -20,7 +20,7 @@ public abstract class AbstractRtuTransport implements ModbusClientTransport {
 		this.keepConnection = keepConnection;
 	}
 
-	protected abstract void openPort() throws Exception;
+	protected abstract boolean openPort() throws Exception;
 	protected abstract void clearInput() throws Exception;
 	protected abstract void sendData(int size) throws Exception;
 	protected abstract boolean readToBuffer(int start, int length, ModbusClient modbusClient) throws Exception;
@@ -29,7 +29,8 @@ public abstract class AbstractRtuTransport implements ModbusClientTransport {
 	public void sendRequest(ModbusClient modbusClient) throws Exception {
 		if (pause > 0)
 			Thread.sleep(pause);
-		openPort();
+		if (!openPort())
+			return;
 		clearInput();
 		buffer[0] = modbusClient.getServerId();
 		modbusClient.readFromPdu(0, modbusClient.getPduSize(), buffer, 1);
@@ -62,7 +63,8 @@ public abstract class AbstractRtuTransport implements ModbusClientTransport {
 	
 	@Override
 	public int waitResponse(ModbusClient modbusClient) throws Exception  {
-		openPort();
+		if (!openPort())
+			return ModbusClient.RESULT_TIMEOUT;
 		try {
 			expectedBytes = modbusClient.getExpectedPduSize() + 3; // id(1), PDU(n), crc(2)
 

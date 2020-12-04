@@ -34,7 +34,7 @@ public class RtuOverUdpTransport extends AbstractRtuTransport {
 
 	// this method must be synchronized with close()
 	@Override
-	synchronized protected void openPort() throws SocketException, UnknownHostException {
+	synchronized protected boolean openPort() throws SocketException, UnknownHostException {
 		if ((socket == null) || socket.isClosed()) {
 			log.info("Opening socket: {}:{} <-> {}:{}", localAddressString, localPort, remoteAddressString, remotePort);
 			InetSocketAddress remoteAddress = new InetSocketAddress(remoteAddressString, remotePort);
@@ -46,6 +46,7 @@ public class RtuOverUdpTransport extends AbstractRtuTransport {
 			outPacket = new DatagramPacket(buffer, buffer.length, remoteAddress);
 			log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), outPacket.getSocketAddress());
 		}
+		return true;
 	}
 
 	// this method may be called from other thread

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="create_run_jar" name="Create Runnable Jar for modbus-sniffer">
+    <property name="dir.jarfile" value="release"/>
+    <target name="create_run_jar">
+        <jar destfile="${dir.jarfile}/modbus-sniffer.jar" filesetmanifest="mergewithoutmain">
+            <manifest>
+                <attribute name="Main-Class" value="certa.modbus.sniffer.SnifferJSerialComm"/>
+                <attribute name="Class-Path" value="."/>
+            </manifest>
+            <fileset dir="bin"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/logback-classic-1.2.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/logback-core-1.2.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/slf4j-api-1.7.25.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/jSerialComm-2.6.2.jar"/>
+        </jar>
+    </target>
+</project>

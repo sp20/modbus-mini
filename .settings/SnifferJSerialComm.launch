@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="org.eclipse.jdt.launching.localJavaApplication">
+<listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
+<listEntry value="/modbus-mini/src/certa/modbus/sniffer/SnifferJSerialComm.java"/>
+</listAttribute>
+<listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
+<listEntry value="1"/>
+</listAttribute>
+<booleanAttribute key="org.eclipse.jdt.launching.ATTR_EXCLUDE_TEST_CODE" value="true"/>
+<stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="certa.modbus.sniffer.SnifferJSerialComm"/>
+<stringAttribute key="org.eclipse.jdt.launching.MODULE_NAME" value="modbus-mini"/>
+<stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="COM9 38400 N 2"/>
+<stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="modbus-mini"/>
+</launchConfiguration>

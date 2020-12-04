@@ -65,6 +65,7 @@ public abstract class AbstractTcpTransport implements ModbusClientTransport {
 	@Override
 	public int waitResponse(ModbusClient modbusClient) throws Exception  {
 		openPort();
+		boolean disconnect = !keepConnection;
 		try {
 			expectedBytes = modbusClient.getExpectedPduSize() + 7; // MBAP(7), PDU(n)
 			// read MBAP(7 bytes) + function(1 byte)
@@ -75,6 +76,7 @@ public abstract class AbstractTcpTransport implements ModbusClientTransport {
 			if (tid != transactionId) {
 				logData("bad transaction", 0, 8);
 				log.warn("waitResponse(): Invalid transaction id: {} (expected: {})", tid, transactionId);
+				disconnect = true; // let's reconnect, because we've "lost synchronization" with the server
 				return ModbusClient.RESULT_BAD_RESPONSE;
 			}
 			// check server id
@@ -111,7 +113,7 @@ public abstract class AbstractTcpTransport implements ModbusClientTransport {
 				return ModbusClient.RESULT_OK;
 			}
 		} finally {
-			if (!keepConnection)
+			if (disconnect)
 				close();
 		}
 	}

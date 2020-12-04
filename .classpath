@@ -7,5 +7,6 @@
 	<classpathentry kind="lib" path="lib/logback-classic-1.2.2.jar" sourcepath="lib/src/logback-classic-1.2.2-sources.jar"/>
 	<classpathentry kind="lib" path="lib/logback-core-1.2.2.jar" sourcepath="lib/src/logback-core-1.2.2-sources.jar"/>
 	<classpathentry kind="lib" path="lib/slf4j-api-1.7.25.jar" sourcepath="lib/src/slf4j-api-1.7.25-sources.jar"/>
+	<classpathentry kind="lib" path="lib/jSerialComm-2.6.2.jar" sourcepath="lib/src/jSerialComm-2.6.2.zip"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

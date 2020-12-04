@@ -57,7 +57,7 @@ public class DefaultRequestProcessor implements RequestProcessor {
 		for (int i = 0; i < nBytes; i++)
 			pdu.writeByteToPDU(2 + i, (byte)0);
 		for (int i = 0; i < count; i++)
-			pdu.writeBitToPDU(2, i, table.getBool(i));
+			pdu.writeBitToPDU(2, i, table.getBool(addr + i));
 	}
 	
 	private void processReadInts(ModbusPdu pdu, RegistersTable table, String name) {

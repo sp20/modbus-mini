@@ -32,15 +32,24 @@ public class RtuOverTcpTransport extends AbstractRtuTransport {
 
 	// this method must be synchronized with close()
 	@Override
-	synchronized protected void openPort() throws IOException {
+	synchronized protected boolean openPort() throws IOException {
 		if ((socket == null) || socket.isClosed()) {
 			log.info("Opening socket: {}:{} <-> {}:{}, respTO: {}, connTO: {}, pause: {}", 
 					localAddressString, localPort, remoteAddressString, remotePort, timeout, connectTimeout, pause);
 			InetSocketAddress localAddress = (localAddressString == null || localAddressString.isEmpty()) ? 
 					null : new InetSocketAddress(InetAddress.getByName(localAddressString), localPort);
 			InetSocketAddress remoteAddress = new InetSocketAddress(InetAddress.getByName(remoteAddressString), remotePort);
+
+			// Sometimes there is a bug when we connect shortly after close. So let's make a delay before connection
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e1) {
+				log.error("Error opening socket {} (sleep: {}", remoteAddress, e1);
+			}
+
 			socket = new Socket();
 			try {
+				socket.setSoLinger(true, 0); // force always close the socket abortive with RST message
 				socket.bind(localAddress);
 				socket.connect(remoteAddress, connectTimeout);
 				socket.setSoTimeout(timeout);
@@ -50,6 +59,7 @@ public class RtuOverTcpTransport extends AbstractRtuTransport {
 			}
 			log.info("Socket opened: {} <-> {}", socket.getLocalSocketAddress(), socket.getRemoteSocketAddress());
 		}
+		return true;
 	}
 
 	// this method may be called from other thread

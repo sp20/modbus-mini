@@ -34,9 +34,9 @@ public class RtuTransportRxtx extends AbstractRtuTransport {
 
 	// this method must be synchronized with close()
 	@Override
-	synchronized protected void openPort() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException {
+	synchronized protected boolean openPort() throws NoSuchPortException, PortInUseException, UnsupportedCommOperationException {
 		if (port != null)
-			return;
+			return true;
 		log.info("Opening port: " + portName);
 		CommPortIdentifier ident = CommPortIdentifier.getPortIdentifier(portName);
 		port = ident.open("ModbusRtuClient on " + portName, 2000);
@@ -51,6 +51,7 @@ public class RtuTransportRxtx extends AbstractRtuTransport {
 			throw e;
 		}
 		log.info("Port opened: " + port.getName());
+		return true;
 	}
 
 	@Override
